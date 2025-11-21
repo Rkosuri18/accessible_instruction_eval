@@ -1,0 +1,34 @@
+{% extends 'surveys/base.html' %}
+{% block title %}Project Description{% endblock %}
+{% block content %}
+
+
+{% if messages %}
+  <div class="messages" aria-live="polite">
+    {% for message in messages %}
+      <div class="alert {{ message.tags }}" role="alert">
+        {{ message }}
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+  <h1>Accessible Instruction Generator (Evaluation)</h1>
+  <p>
+    We are studying how well instruction manuals communicate steps for blind users. Click <em>Start New Evaluation</em> and you will be shown one manual PDF or a video and the system asks you to rate its accessibility across seven dimensions (1–7), explain your ratings, and suggest improvements. or resume where you left off if you already started.
+  </p>
+
+  {% if resume_step %}
+    <div class="alert" role="status" aria-live="polite">
+      You have an unfinished evaluation.
+      <a class="btn btn-primary" href="{% url 'surveys:evaluate' step=resume_step %}">
+        Resume at Step {{ resume_step }}
+      </a>
+    </div>
+  {% endif %}
+
+  <form method="post" action="{% url 'surveys:start' %}">
+    {% csrf_token %}
+    <button type="submit" class="btn-primary">Start New Evaluation</button>
+  </form>
+{% endblock %}

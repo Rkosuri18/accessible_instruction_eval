@@ -1,0 +1,230 @@
+{% extends 'surveys/base.html' %}
+{% block title %}Evaluate PDF{% endblock %}
+{% block content %}
+
+<h1 class="sr-only">Evaluate the Instruction PDF</h1>
+
+<div class="eval-header">
+  <div class="progress">Step {{ step }} of {{ total_steps }}</div>
+  <div class="pdf-actions" role="group" aria-label="Media actions">
+    {% if is_pdf_step %}
+      <a class="btn btn-secondary" href="{{ sess.doc.file.url }}" download>Download PDF</a>
+    {% elif is_video_step and video_url %}
+      <a class="btn btn-secondary" href="{{ video_url }}" download>Download video</a>
+    {% endif %}
+  </div>
+</div>
+
+{% if form.errors %}
+  <div class="eval-alert eval-alert-error" role="alert" aria-live="assertive">
+    There was a problem saving your answers. Review the form below for details.
+  </div>
+{% endif %}
+
+
+<div class="eval-grid">
+  
+  <section class="pdf-pane" aria-labelledby="media-title">
+    <h2 id="media-title" class="pane-title">
+      {% if is_video_step %}
+        {{ video_title|default:"Instructional Video" }}
+      {% else %}
+        {{ sess.doc.title }}
+      {% endif %}
+    </h2>
+
+    {% if is_pdf_step %}
+      <iframe
+        class="pdf-viewer"
+        src="{% url 'surveys:inline_pdf' sess.doc.id %}#toolbar=1&navpanes=0&view=FitH"
+        title="Instruction PDF"
+        loading="lazy"
+      ></iframe>
+
+      <noscript>
+        <p>
+          Your browser can’t display PDFs inline.
+          <a class="btn btn-secondary" href="{{ sess.doc.file.url }}" download>Download the PDF</a>.
+        </p>
+      </noscript>
+
+    {% elif is_video_step and video_url %}
+      <video class="pdf-viewer" controls preload="metadata"
+             aria-label="{{ video_title|default:'Instructional video' }}"
+             title="{{ video_title|default:'Instructional video' }}">
+        <source src="{{ video_url }}" type="video/mp4">
+        Your browser doesn’t support embedded videos.
+        <a href="{{ video_url }}" download>Download video</a>.
+      </video>
+    {% else %}
+      <p>No content available for this step.</p>
+    {% endif %}
+  </section>
+
+  
+  <section class="form-pane" aria-labelledby="questions-title">
+    <h2 id="questions-title" class="pane-title">Rate the dimensions</h2>
+
+    <form method="post" novalidate class="sticky-form" id="eval-form">
+      {% csrf_token %}
+
+
+      
+      <div id="inline-error"
+           class="form-error"
+           role="alert"
+           aria-live="assertive"
+           style="display:none; margin-bottom:0.75rem;">
+      </div>
+
+      {% for row in q_rows %}
+        <fieldset class="card">
+          <legend>{{ row.q.get_key_display }}</legend>
+          <p id="hint_{{ row.q.id }}" class="dim-text">Type a whole number from 1 to 7.</p>
+          <p class="dim-text">{{ row.q.text }}</p>
+
+          <div class="field{% if row.rating.errors %} has-error{% endif %}">
+            {{ row.rating.label_tag }}
+            {{ row.rating }}
+            {% if row.rating.errors %}
+              <div class="form-error" role="alert">
+                {{ row.rating.errors|join:", " }}
+              </div>
+            {% endif %}
+          </div>
+
+          <div class="field{% if row.reason.errors %} has-error{% endif %}">
+            {{ row.reason.label_tag }}
+            {{ row.reason }}
+            {% if row.reason.errors %}
+              <div class="form-error" role="alert">
+                {{ row.reason.errors|join:", " }}
+              </div>
+            {% endif %}
+          </div>
+
+          <div class="field{% if row.improve.errors %} has-error{% endif %}">
+            {{ row.improve.label_tag }}
+            {{ row.improve }}
+            {% if row.improve.errors %}
+              <div class="form-error" role="alert">
+                {{ row.improve.errors|join:", " }}
+              </div>
+            {% endif %}
+          </div>
+        </fieldset>
+      {% endfor %}
+
+      <div class="toolbar">
+        {% if step > 1 %}
+          <a class="btn-secondary" href="{% url 'surveys:evaluate' step=step|add:'-1' %}">← Back</a>
+        {% else %}
+          <a class="btn-secondary disabled" aria-disabled="true" tabindex="-1">← Back</a>
+        {% endif %}
+
+        <button type="submit" class="btn-primary" id="next-btn">
+          {% if is_last %}Next → Review{% else %}Next{% endif %}
+        </button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<script>
+  (function(){
+    const form = document.getElementById('eval-form');
+    const nextBtn = document.getElementById('next-btn');
+    if (!form) return;
+
+    
+    const mainTitle = document.getElementById('media-title') || document.getElementById('questions-title');
+    if (mainTitle) {
+      mainTitle.setAttribute('tabindex', '-1');
+      window.requestAnimationFrame(() => { mainTitle.focus(); });
+    }
+
+    
+    const saveStatus = document.createElement('span');
+    saveStatus.id = 'save-status';
+    saveStatus.setAttribute('role', 'status');
+    saveStatus.setAttribute('aria-live', 'polite');
+    saveStatus.setAttribute('aria-atomic', 'true');
+    saveStatus.style.marginLeft = '0.75rem';
+    saveStatus.style.fontSize = '0.9rem';
+    saveStatus.style.opacity = '0.6';
+    saveStatus.textContent = '';
+    if (nextBtn && nextBtn.parentElement) {
+      nextBtn.parentElement.appendChild(saveStatus);
+    }
+
+    function getCSRF(){
+      const el = document.querySelector('input[name=csrfmiddlewaretoken]');
+      return el ? el.value : '';
+    }
+
+   
+    const baseSaveUrl = "{% url 'surveys:save_partial_answer' session_id=sess.id question_id=0 %}";
+
+    function debounce(fn, wait){
+      let t;
+      return function(...args){
+        clearTimeout(t);
+        t = setTimeout(() => fn.apply(this, args), wait);
+      };
+    }
+
+    function showStatus(txt, ok=true){
+      if (!saveStatus) return;
+      saveStatus.textContent = txt;
+      saveStatus.style.color = ok ? '#0a0' : '#c00';
+      saveStatus.style.opacity = '0.9';
+      clearTimeout(showStatus._t);
+      saveStatus._t = setTimeout(() => { saveStatus.style.opacity = '0.6'; }, 1200);
+    }
+
+    const sendPartial = debounce(async (name, value) => {
+      const m = name.match(/^(rating|reason|improve)_(\d+)$/);
+      if (!m) return;
+      const field = m[1];
+      const qid = m[2];
+
+      const url = baseSaveUrl.replace(/\/0\/$/, `/${qid}/`);
+      const payload = {};
+      payload[field] = value;
+
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRF(),
+          },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (res.ok && data.ok) {
+          showStatus('Saved');
+        } else {
+          showStatus('Save failed', false);
+        }
+      } catch (e) {
+        showStatus('Offline?', false);
+      }
+    }, 400);
+
+    function handleChangeOrInput(e){
+      const t = e.target;
+      if (!t || !t.name) return;
+      if (/^(rating|reason|improve)_\d+$/.test(t.name)) {
+        
+        sendPartial(t.name, t.value);
+      }
+    }
+
+    form.addEventListener('input', handleChangeOrInput);
+    form.addEventListener('change', handleChangeOrInput);
+  })();
+</script>
+
+{% endblock %}
+

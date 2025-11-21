@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+
+# Django / project files we don't want in Git
+db.sqlite3
+/media/
+staticfiles/
+
+# Environment / virtualenvs
+.env
+venv/
+.venv/
+.env313/
+.venv313/
+.vscode/
+
+# IDE stuff
+.idea/
+
+# OS junk
+.DS_Store
+Thumbs.db
+

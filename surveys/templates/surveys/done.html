@@ -1,0 +1,11 @@
+{% extends 'surveys/base.html' %}
+{% block title %}Submit your session{% endblock %}
+{% block content %}
+  <h1>Submit your session</h1>
+  <p>You’ve completed ratings for {{ request.session.doc_queue|length|default:"5" }} PDFs.</p>
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-primary">Submit</button>
+    <a class="btn btn-ghost" href="{% url 'surveys:home' %}">Cancel</a>
+  </form>
+{% endblock %}
