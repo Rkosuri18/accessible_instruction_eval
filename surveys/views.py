@@ -159,7 +159,7 @@ def evaluate(request, step: int):
     sess = get_object_or_404(ResponseSession, id=sess_id)
 
     questions = list(Question.objects.filter(is_active=True).order_by("order", "id"))
-    has_errors = False  # <-- to tell the template that this POST failed
+    has_errors = False  
 
     if request.method == "POST":
         form = EvaluationForm(request.POST, questions=questions)
@@ -198,7 +198,7 @@ def evaluate(request, step: int):
                 return redirect("surveys:done")
             return redirect("surveys:evaluate", step=next_step)
         else:
-            # Form invalid: user clicked Next but there is a problem
+            
             has_errors = True
             messages.error(
                 request,

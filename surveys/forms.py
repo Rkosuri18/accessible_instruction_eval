@@ -5,7 +5,6 @@ import re
 
 from .models import Question
 
-
 _ALPHA_RE = re.compile(r"[A-Za-z]")
 
 
@@ -15,7 +14,6 @@ class EvaluationForm(forms.Form):
         self.questions = list(questions or [])
 
         for idx, q in enumerate(self.questions):
-            # Rating (1–7) as a number input
             self.fields[f"rating_{q.id}"] = forms.IntegerField(
                 label=f"Rating for {q.get_key_display()} (1–7)",
                 min_value=1,
@@ -41,7 +39,6 @@ class EvaluationForm(forms.Form):
                 },
             )
 
-            
             self.fields[f"reason_{q.id}"] = forms.CharField(
                 label="Reason",
                 required=True,
@@ -52,11 +49,10 @@ class EvaluationForm(forms.Form):
                     }
                 ),
                 error_messages={
-                    "required": "Please explain why you chose this rating (at least two words).",
+                    "required": "Please explain why you chose this rating.",
                 },
             )
 
-           
             self.fields[f"improve_{q.id}"] = forms.CharField(
                 label="How to make it better",
                 required=True,
@@ -67,30 +63,24 @@ class EvaluationForm(forms.Form):
                     }
                 ),
                 error_messages={
-                    "required": "Please suggest how these instructions could be improved (at least two words).",
+                    "required": "Please suggest how these instructions could be improved.",
                 },
             )
 
     def _validate_free_text(self, value: str, label: str) -> None:
-       
         if not value:
-            raise ValidationError(f"{label} is required. Please enter at least two words.")
+            raise ValidationError(f"{label} is required. Please enter at least two letters.")
 
         text = value.strip()
         if not text:
-            raise ValidationError(f"{label} is required. Please enter at least two words.")
+            raise ValidationError(f"{label} is required. Please enter at least two letters.")
 
-        
-        if not _ALPHA_RE.search(text):
-            raise ValidationError(f"{label} should include letters, not just numbers or symbols.")
-
-        
-        words = [w for w in text.split() if _ALPHA_RE.search(w)]
-        if len(words) < 2:
-            raise ValidationError(f"{label} should be at least two words.")
+       
+        letters = _ALPHA_RE.findall(text)
+        if len(letters) < 2:
+            raise ValidationError(f"{label} should include at least two letters.")
 
     def clean(self):
-        
         cleaned = super().clean()
 
         
@@ -111,13 +101,11 @@ class EvaluationForm(forms.Form):
             reason_val = cleaned.get(reason_key)
             improve_val = cleaned.get(improve_key)
 
-            
             try:
                 self._validate_free_text(reason_val, "Reason")
             except ValidationError as e:
                 self.add_error(reason_key, e)
 
-            
             try:
                 self._validate_free_text(improve_val, "How to make it better")
             except ValidationError as e:
